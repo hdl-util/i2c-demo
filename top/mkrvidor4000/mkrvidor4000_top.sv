@@ -179,10 +179,46 @@ i2c_master #(
     .data_tx(data_tx),
     .data_rx(data_rx)
 );
-
+logic [3:0] state = 4'd0;
 always @(posedge CLK_48MHZ)
 begin
-    // do some i2c stuff with ATECC508A-MAHDA, BQ24195LRGET
+    // do some i2c stuff with BQ24195LRGET
+    if (transfer_ready && state == 4'd0)
+    begin
+        transfer_start <= 1'b1;
+        transfer_continue <= 1'b1;
+        mode <= 1'b0;
+        data_tx <= {7'h6B, 1'b0};
+        state <= 4'd1;
+    end
+    else if (state == 4'd1 && interrupt && transaction_complete && !nack)
+    begin
+        transfer_start <= 1'b0;
+        transfer_continue <= 1'b0;
+        mode <= 1'b0;
+        data_tx <= 8'h08;
+        state <= 4'd2;
+    end
+    else if (state == 4'd2 && interrupt && transaction_complete && !nack)
+    begin
+        transfer_start <= 1'b1;
+        transfer_continue <= 1'b0;
+        mode <= 1'b0;
+        data_tx <= {7'h6B, 1'b1};
+        state <= 4'd3;
+    end
+    else if (state == 4'd3 && interrupt && transaction_complete && !nack)
+    begin
+        transfer_start <= 1'b0;
+        transfer_continue <= 1'b0;
+        mode <= 1'b1;
+        state <= 4'd4;
+    end
+    else if (state == 4'd4 && interrupt && transaction_complete && nack)
+    begin
+        character <= data_rx;
+        state <= 4'd0;
+    end
 end
 
 endmodule

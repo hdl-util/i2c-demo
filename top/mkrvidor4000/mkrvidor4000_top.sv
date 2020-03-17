@@ -193,49 +193,37 @@ begin
         transfer_start <= 1'b1;
         transfer_continues <= 1'b1;
         mode <= 1'b0;
-        data_tx <= {7'b1010101, 1'b1};
+        data_tx <= {7'b1101011, 1'b0};
         state <= state + 4'd1;
     end
     else if (state == 4'd1 && interrupt && transaction_complete && !nack)
     begin
         transfer_start <= 1'b0;
         transfer_continues <= 1'b0;
+        mode <= 1'b0;
+        data_tx <= 8'h08;
+        state <= state + 4'd1;
+    end
+    else if (state == 4'd2 && interrupt && transaction_complete && !nack)
+    begin
+        transfer_start <= 1'b1;
+        transfer_continues <= 1'b1;
+        mode <= 1'b0;
+        data_tx <= {7'b1101011, 1'b1};
+        state <= state + 4'd1;
+    end
+    else if (state == 4'd3 && interrupt && transaction_complete && !nack)
+    begin
+        transfer_start <= 1'b0;
+        transfer_continues <= 1'b0;
         mode <= 1'b1;
         state <= state + 4'd1;
     end
-    else if (state == 4'd2 && interrupt && transaction_complete && nack)
+    else if (state == 4'd4 && interrupt && transaction_complete && nack)
     begin
-        character <= data_rx;
+        character <= {4'h3, data_rx[7:4]};
         state <= 4'd0;
     end
-    // else if (state == 4'd1 && interrupt && transaction_complete && !nack)
-    // begin
-    //     transfer_start <= 1'b0;
-    //     transfer_continues <= 1'b0;
-    //     mode <= 1'b0;
-    //     data_tx <= i2c_out;
-    //     state <= 4'd0;
-    // end
-    // else if (state == 4'd2 && interrupt && transaction_complete && !nack)
-    // begin
-    //     transfer_start <= 1'b1;
-    //     transfer_continues <= 1'b1;
-    //     mode <= 1'b0;
-    //     data_tx <= {7'b1010101, 1'b1};
-    //     state <= 4'd3;
-    // end
-    // else if (state == 4'd3 && interrupt && transaction_complete && !nack)
-    // begin
-    //     transfer_start <= 1'b0;
-    //     transfer_continues <= 1'b0;
-    //     mode <= 1'b1;
-    //     state <= 4'd4;
-    // end
-    // else if (state == 4'd4 && interrupt && transaction_complete && nack)
-    // begin
-    //     character <= {4'h3, data_rx[7:4]};
-    //     state <= 4'd0;
-    // end
 end
 
 endmodule

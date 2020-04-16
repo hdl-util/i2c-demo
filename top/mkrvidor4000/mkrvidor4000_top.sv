@@ -141,16 +141,19 @@ hdmi #(.VIDEO_ID_CODE(4), .DVI_OUTPUT(1), .DDRIO(1)) hdmi(.clk_pixel_x10(clk_pix
 
 logic [7:0] character = 8'd0;
 logic [7:0] attribute = 8'd0;
-console console(.clk_pixel(clk_pixel), .character(character), .attribute(attribute), .cx(cx), .cy(cy), .rgb(rgb));
+console console(.clk_pixel(clk_pixel), .codepoint(character), .attribute(attribute), .cx(cx), .cy(cy), .rgb(rgb));
 
 logic bus_clear;
 logic mode = 1'b0;
+logic [7:0] address;
+assign address = {7'b1101011, mode};
 logic transfer_start = 1'b0;
 logic transfer_continues = 1'b0;
 logic transfer_ready;
 logic interrupt;
 logic transaction_complete;
 logic nack;
+logic address_err;
 logic start_err;
 logic arbitration_err;
 logic [7:0] data_tx = 8'd0;
@@ -168,61 +171,43 @@ i2c_master #(
     .clk_in(CLK_48MHZ),
     .bus_clear(bus_clear),
     .sda(SDA),
-    .mode(mode),
+    .address(address),
     .transfer_start(transfer_start),
     .transfer_continues(transfer_continues),
     .transfer_ready(transfer_ready),
     .interrupt(interrupt),
     .transaction_complete(transaction_complete),
     .nack(nack),
+    .address_err(address_err),
     .start_err(start_err),
     .arbitration_err(arbitration_err),
     .data_tx(data_tx),
     .data_rx(data_rx)
 );
 
-logic [3:0] state = 4'd0;
+logic state = 1'd0;
 always @(posedge CLK_48MHZ)
 begin
     // attribute <= {4'd0, state};
     attribute <= {4'd0, 4'd2};
     // character <= {4'h3, state};
     // do some i2c stuff with BQ24195LRGET
-    if (transfer_ready && state == 4'd0)
+    if ((transfer_ready || (transaction_complete && nack)) && state == 1'd0)
     begin
         transfer_start <= 1'b1;
-        transfer_continues <= 1'b1;
-        mode <= 1'b0;
-        data_tx <= {7'b1101011, 1'b0};
-        state <= state + 4'd1;
-    end
-    else if (state == 4'd1 && interrupt && transaction_complete && !nack)
-    begin
-        transfer_start <= 1'b0;
         transfer_continues <= 1'b0;
         mode <= 1'b0;
         data_tx <= 8'h08;
-        state <= state + 4'd1;
+        state <= 1'd1;
+        if (transaction_complete)
+            character <= {4'h3, data_rx[7:4]};
     end
-    else if (state == 4'd2 && interrupt && transaction_complete && !nack)
+    else if (state == 1'd1 && interrupt && transaction_complete && !nack)
     begin
         transfer_start <= 1'b1;
-        transfer_continues <= 1'b1;
-        mode <= 1'b0;
-        data_tx <= {7'b1101011, 1'b1};
-        state <= state + 4'd1;
-    end
-    else if (state == 4'd3 && interrupt && transaction_complete && !nack)
-    begin
-        transfer_start <= 1'b0;
         transfer_continues <= 1'b0;
         mode <= 1'b1;
-        state <= state + 4'd1;
-    end
-    else if (state == 4'd4 && interrupt && transaction_complete && nack)
-    begin
-        character <= {4'h3, data_rx[7:4]};
-        state <= 4'd0;
+        state <= 1'd0;
     end
 end
 
